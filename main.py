@@ -26,7 +26,9 @@ def create_short_url(payload: dict):
 
     try:
         insert_short_url(shortened_url, source_url)
-    except:
+    except sqlite3.IntegrityError:
+        raise HTTPException(status_code=409, detail="shortened url already exists")
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
     return {
@@ -37,7 +39,10 @@ def create_short_url(payload: dict):
 
 @app.get("/{shortened_url}")
 def redirect_short_url(shortened_url: str):
-    source_url = fetch_source_url(shortened_url)
+    try:
+        source_url = fetch_source_url(shortened_url)
+    except Exception:
+        raise HTTPException(status=500, detail="Internal Server Error")
     if not source_url:
         raise HTTPException(status=404, detail="shortened url not found")
     return RedirectResponse(url=source_url)

@@ -6,7 +6,6 @@ Creates a new shortened URL that maps to an existing destination URL
 **Endpoint** 
 POST /short-urls 
 
-
 ### Request
 
 **Body** 
