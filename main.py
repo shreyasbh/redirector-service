@@ -1,5 +1,6 @@
 import sqlite3 
 
+from id_generator import SnowflakeIDGenerator
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import RedirectResponse 
 from datetime import datetime
@@ -11,17 +12,17 @@ def create_short_url(payload: dict):
     if not payload:
         raise HTTPException(status_code=400, detail="request body is required")
 
-
     source_url = payload.get("source_url")
-    shortened_url = payload.get("shortened_url")
-    if not source_url or not shortened_url:
-        raise HTTPException(status_code=400, detail="source_url and shortened_url are required")
+    if not source_url:
+        raise HTTPException(status_code=400, detail="source_url is required")
+
     if not (source_url.startswith("http://") or source_url.startswith("https://")):
         raise HTTPException(status_code=400, detail="invalid url format")
-    
-    exisiting = fetch_source_url(shortened_url)
-    
-    if exisiting:
+
+    shortened_url = str(id_generator.generate())
+
+    existing = fetch_source_url(shortened_url)
+    if existing:
         raise HTTPException(status_code=409, detail="shortened URL already exists")
 
     try:
@@ -36,6 +37,7 @@ def create_short_url(payload: dict):
         "source_url": source_url,
         "creation_timestamp": datetime.utcnow().isoformat()
     }
+
 
 @app.get("/{shortened_url}")
 def redirect_short_url(shortened_url: str):
