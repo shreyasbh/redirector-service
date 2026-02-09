@@ -4,8 +4,12 @@ from id_generator import SnowflakeIDGenerator
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import RedirectResponse 
 from datetime import datetime
+from lru_cache import LRUCache
+
 
 app = FastAPI(title="Redirector Service")
+redirect_cache = LRUCache(capacity=10000)
+
 
 @app.post("/short-urls")
 def create_short_url(payload: dict):
@@ -41,13 +45,25 @@ def create_short_url(payload: dict):
 
 @app.get("/{shortened_url}")
 def redirect_short_url(shortened_url: str):
+    # 1) Try cache first
+    cached = redirect_cache.get(shortened_url)
+    if cached:
+        return RedirectResponse(url=cached)
+
+    # 2) Fallback to DB
     try:
         source_url = fetch_source_url(shortened_url)
     except Exception:
-        raise HTTPException(status=500, detail="Internal Server Error")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+
     if not source_url:
-        raise HTTPException(status=404, detail="shortened url not found")
+        raise HTTPException(status_code=404, detail="shortened url not found")
+
+    # 3) Populate cache (read-through)
+    redirect_cache.put(shortened_url, source_url)
+
     return RedirectResponse(url=source_url)
+
 
 def init_db():
     conn = sqlite3.connect("redirector.db")
